@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Session history · CampusCheck{% endblock %}
+{% block content %}
+<section class="dashboard-head"><div><p class="eyebrow">TEACHER WORKSPACE</p><h1>Session history.</h1></div><a class="button secondary" href="{{ url_for('export_monthly_csv') }}">Export report</a></section>
+<form class="filter-form panel" method="get">
+  <label>From<input type="date" name="start" value="{{ start }}"></label>
+  <label>To<input type="date" name="end" value="{{ end }}"></label>
+  <button class="button primary" type="submit">Filter</button>
+  {% if start or end %}<a href="{{ url_for('teacher_history') }}">Clear</a>{% endif %}
+</form>
+<section class="panel table-panel"><div class="table-wrap"><table>
+  <thead><tr><th>Subject</th><th>Created (UTC)</th><th>Expires (UTC)</th><th>Present</th><th></th></tr></thead>
+  <tbody>{% for record in records %}<tr><td><strong>{{ record['subject_code'] }}</strong></td><td>{{ record['created_at'] }}</td><td>{{ record['expires_at'] }}</td><td>{{ record['present_count'] }}</td><td><a href="{{ url_for('teacher_dashboard', session_token=record['session_token']) }}">View</a></td></tr>{% else %}<tr><td colspan="5" class="empty">No sessions match this filter.</td></tr>{% endfor %}</tbody>
+</table></div></section>
+{% endblock %}

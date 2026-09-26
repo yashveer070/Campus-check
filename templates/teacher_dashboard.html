@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Live attendance · CampusCheck{% endblock %}
+{% block content %}
+<section class="dashboard-head">
+  <div><p class="eyebrow">LIVE ATTENDANCE · {{ class_session['subject_code'] }}</p><h1>Classroom pulse.</h1><p class="muted">Refreshing every 10 seconds. Flagged records need review.</p></div>
+  <a class="button secondary" href="{{ url_for('export_session_csv', session_token=class_session['session_token']) }}">Export CSV</a>
+</section>
+<section class="stats-grid">
+  <article><span>Present</span><strong id="stat-present">0</strong></article>
+  <article><span>Not recorded</span><strong id="stat-absent">0</strong></article>
+  <article><span>Attendance</span><strong id="stat-percentage">0%</strong></article>
+</section>
+<section class="panel table-panel">
+  <div class="panel-title"><h2>Checked in</h2><span id="updated-at" class="muted">Loading…</span></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Roll number</th><th>Name</th><th>Time</th><th>IP address</th><th>Location</th><th>Status</th></tr></thead>
+    <tbody id="attendance-body"><tr><td colspan="6" class="empty">No attendance has been recorded yet.</td></tr></tbody>
+  </table></div>
+</section>
+<section class="manual-card panel">
+  <div><p class="eyebrow">ACCESSIBILITY</p><h2>Record a manual check-in</h2><p class="muted">For a student unable to use a phone. This action is audited.</p></div>
+  <form id="manual-form"><label>Student ID<input id="manual-student-id" required placeholder="e.g. STU001"></label><button class="button secondary" type="submit">Mark present</button></form>
+  <p id="manual-message" class="small" role="status"></p>
+</section>
+<script>window.CAMPUSCHECK_SESSION_TOKEN = {{ class_session['session_token']|tojson }};</script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}

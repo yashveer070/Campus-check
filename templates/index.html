@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}CampusCheck · Attendance{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">SECURE CLASSROOM ATTENDANCE</p>
+  <h1>Presence,<br>verified.</h1>
+  <p>QR sessions are short-lived and check both your campus network and classroom location before recording attendance.</p>
+  <div class="hero-actions"><a class="button primary" href="{{ url_for('login', role='teacher') }}">Teacher sign in</a><a class="button secondary" href="{{ url_for('login', role='student') }}">Student sign in</a></div>
+</section>
+<section class="three-up">
+  <article><span>01</span><h2>One-minute QR</h2><p>Every class session has a new, expiring code.</p></article>
+  <article><span>02</span><h2>Campus-aware</h2><p>Attendance only accepts configured college WiFi ranges.</p></article>
+  <article><span>03</span><h2>Location-bound</h2><p>High-accuracy GPS verifies the classroom geofence.</p></article>
+</section>
+{% endblock %}

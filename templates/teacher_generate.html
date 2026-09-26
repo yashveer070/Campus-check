@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}New session · CampusCheck{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">TEACHER WORKSPACE</p><h1>Start a live session.</h1></div>
+  <p class="muted">Your browser location becomes the classroom anchor. QR codes expire in 60 seconds.</p>
+</section>
+<section class="generator-grid">
+  <form id="session-form" class="panel stack-form">
+    <h2>Session details</h2>
+    <label>Subject
+      <select id="subject-code" required>{% for subject in subjects %}<option value="{{ subject }}">{{ subject }}</option>{% endfor %}</select>
+    </label>
+    <div class="location-box"><strong id="location-state">Classroom location needed</strong><span id="location-detail">Use a GPS-capable device for the best result.</span></div>
+    <button id="location-button" class="button secondary" type="button">Use my current location</button>
+    <button id="generate-button" class="button primary full" type="submit" disabled>Generate secure QR</button>
+  </form>
+  <section id="qr-result" class="panel qr-result hidden" aria-live="polite">
+    <p class="eyebrow">ACTIVE SESSION</p>
+    <img id="qr-image" alt="Attendance QR code">
+    <div class="countdown"><strong id="countdown">01:00</strong><span>remaining</span></div>
+    <dl>
+      <div><dt>Subject</dt><dd id="result-subject">—</dd></div>
+      <div><dt>Token</dt><dd id="result-token" class="token">—</dd></div>
+      <div><dt>Location</dt><dd id="result-location">—</dd></div>
+    </dl>
+    <a id="dashboard-link" class="button secondary full">Open live dashboard</a>
+  </section>
+</section>
+<script src="{{ url_for('static', filename='teacher.js') }}"></script>
+{% endblock %}

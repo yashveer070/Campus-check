@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Scan QR · CampusCheck{% endblock %}
+{% block content %}
+<section class="scan-layout">
+  <div class="scan-copy"><p class="eyebrow">STUDENT CHECK-IN</p><h1>Point your camera<br>at the QR code.</h1><p id="network-status" class="network-pill pending">Checking campus WiFi…</p><p class="muted">After a code is detected, CampusCheck requests precise location to verify that you are in the classroom.</p><a href="{{ url_for('student_history') }}">View my attendance history</a></div>
+  <section class="scanner-card">
+    <video id="scanner" playsinline></video>
+    <div class="scanner-frame"></div>
+    <div id="scan-message" role="status" class="scan-message">Starting camera…</div>
+    <button id="retry-camera" class="button secondary hidden">Retry camera</button>
+  </section>
+</section>
+<noscript><p class="flash error">JavaScript is needed to scan QR codes and submit your verified location.</p></noscript>
+<script>window.CAMPUSCHECK_INITIAL_TOKEN = {{ initial_token|tojson }};</script>
+<script type="module" src="{{ url_for('static', filename='scanner.js') }}"></script>
+{% endblock %}

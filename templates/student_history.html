@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}My attendance · CampusCheck{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">STUDENT PORTAL</p><h1>My attendance.</h1></div><a class="button primary" href="{{ url_for('student_scan') }}">Scan a QR</a></section>
+<section class="subject-grid">
+  {% for subject in subject_rows %}<article class="panel"><p class="eyebrow">{{ subject['subject_code'] }}</p><strong>{{ subject['attended'] }} / {{ subject['sessions_held'] }}</strong><span>{{ ((subject['attended'] / subject['sessions_held'] * 100) if subject['sessions_held'] else 0)|round(1) }}% recorded</span></article>
+  {% else %}<p class="muted">No class sessions have been recorded yet.</p>{% endfor %}
+</section>
+<section class="two-column">
+  <section class="panel table-panel"><div class="panel-title"><h2>Attendance records</h2></div><div class="table-wrap"><table><thead><tr><th>Subject</th><th>Time (UTC)</th><th>Status</th></tr></thead><tbody>{% for record in records %}<tr><td>{{ record['subject_code'] }}</td><td>{{ record['timestamp'] }}</td><td>{% if record['is_flagged'] %}<span class="status flagged">Review</span>{% else %}<span class="status good">Recorded</span>{% endif %}</td></tr>{% else %}<tr><td colspan="3" class="empty">No attendance records yet.</td></tr>{% endfor %}</tbody></table></div></section>
+  <section class="panel"><p class="eyebrow">NOT RECORDED</p><h2>Sessions without a check-in</h2><p class="muted small">These are all recorded sessions; they may not necessarily be classes you were enrolled in.</p><ul class="missed-list">{% for item in missed %}<li><strong>{{ item['subject_code'] }}</strong><span>{{ item['created_at'] }}</span></li>{% else %}<li class="muted">None.</li>{% endfor %}</ul></section>
+</section>
+{% endblock %}

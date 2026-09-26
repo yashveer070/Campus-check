@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}{{ role|title }} sign in · CampusCheck{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">{{ role|upper }} PORTAL</p>
+  <h1>Welcome back.</h1>
+  <p class="muted">{% if role == 'teacher' %}Use your institutional email and password.{% else %}Sign in with your student ID and roll number.{% endif %}</p>
+  <form method="post" class="stack-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>{% if role == 'teacher' %}Email{% else %}Student ID{% endif %}<input name="identifier" type="{% if role == 'teacher' %}email{% else %}text{% endif %}" required autocomplete="username"></label>
+    <label>{% if role == 'teacher' %}Password{% else %}Roll number{% endif %}<input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="button primary full" type="submit">Sign in</button>
+  </form>
+  <p class="small muted">Need another account type? <a href="{{ url_for('login', role='student' if role == 'teacher' else 'teacher') }}">Switch portal</a></p>
+</section>
+{% endblock %}
