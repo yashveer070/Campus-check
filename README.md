@@ -47,7 +47,7 @@ The default ranges intentionally reject 127.0.0.1, so a local student check-in w
 
 The app includes a production WSGI entry point and Dockerfile. Use exactly one application worker with SQLite and mount a persistent volume at `/data`; set `ATTENDANCE_DATABASE=/data/attendance.db` on a non-Docker host. A public deployment must use HTTPS so browsers can access the camera and GPS.
 
-Set `TRUSTED_PROXY_COUNT=1` only when the app is behind one proxy you control (such as a Cloudflare Tunnel). Set `COLLEGE_IP_RANGES` to the public egress CIDR(s) of the college WiFi. Private LAN ranges such as `10.210.202.0/24` do not work over the Internet because the hosted app sees the WiFi network's public IP.
+Set `TRUSTED_PROXY_COUNT=1` only when the app is behind one proxy you control. For a Cloudflare Tunnel whose application origin listens only on localhost, also set `TRUST_CLOUDFLARE_CONNECTING_IP=true` so the WiFi check uses Cloudflare's verified visitor IP. Set `COLLEGE_IP_RANGES` to the public egress CIDR(s) of the college WiFi. Private LAN ranges such as `10.210.202.0/24` do not work over the Internet because the hosted app sees the WiFi network's public IP.
 
 For a permanent public address, run the Docker image on a host with persistent storage or configure a named Cloudflare Tunnel with a domain you control. A temporary Quick Tunnel is suitable for testing only.
 

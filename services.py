@@ -22,7 +22,17 @@ def from_iso(value: str) -> datetime:
 
 
 def get_client_ip() -> str:
-    """Returns request.remote_addr after ProxyFix has handled trusted proxy headers."""
+    """Return the validated client address supplied by the configured ingress."""
+    if (
+        current_app.config.get("TRUST_CLOUDFLARE_CONNECTING_IP")
+        and current_app.config.get("TRUSTED_PROXY_COUNT", 0) > 0
+    ):
+        cloudflare_ip = request.headers.get("CF-Connecting-IP", "").strip()
+        try:
+            return str(ipaddress.ip_address(cloudflare_ip))
+        except ValueError:
+            if cloudflare_ip:
+                current_app.logger.warning("Ignoring invalid CF-Connecting-IP header.")
     return request.remote_addr or "0.0.0.0"
 
 

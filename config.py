@@ -21,6 +21,10 @@ class Config:
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024
     # Configure this only when the app is actually behind that many trusted proxies.
     TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
+    # Enable only when the origin is reachable exclusively through Cloudflare.
+    TRUST_CLOUDFLARE_CONNECTING_IP = os.environ.get(
+        "TRUST_CLOUDFLARE_CONNECTING_IP", "false"
+    ).lower() == "true"
     COLLEGE_IP_RANGES = [
         item.strip()
         for item in os.environ.get(

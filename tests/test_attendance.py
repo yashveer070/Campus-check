@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app
 from database import get_db
-from services import calculate_distance, to_iso, utcnow
+from services import calculate_distance, get_client_ip, to_iso, utcnow
 
 
 @pytest.fixture()
@@ -79,6 +79,26 @@ def test_rejects_student_outside_geofence(app):
 def test_haversine_distance_uses_the_earth_radius():
     # One degree of longitude at the equator is roughly 111 km, not a few metres.
     assert calculate_distance(0, 0, 0, 1) == pytest.approx(111.2, rel=0.01)
+
+
+def test_uses_cloudflare_visitor_ip_only_when_explicitly_trusted(app):
+    app.config.update(
+        TRUSTED_PROXY_COUNT=1,
+        TRUST_CLOUDFLARE_CONNECTING_IP=True,
+    )
+    with app.test_request_context(
+        "/",
+        headers={"CF-Connecting-IP": "10.210.202.18"},
+        environ_base={"REMOTE_ADDR": "127.0.0.1"},
+    ):
+        assert get_client_ip() == "10.210.202.18"
+
+    with app.test_request_context(
+        "/",
+        headers={"CF-Connecting-IP": "not-an-ip"},
+        environ_base={"REMOTE_ADDR": "127.0.0.1"},
+    ):
+        assert get_client_ip() == "127.0.0.1"
 
 
 def test_qr_url_uses_forwarded_https_origin(app):
