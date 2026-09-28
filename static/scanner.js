@@ -6,29 +6,12 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 const video = document.getElementById("scanner");
 const message = document.getElementById("scan-message");
 const retry = document.getElementById("retry-camera");
-const network = document.getElementById("network-status");
 const queueKey = "campuscheck-offline-checkins";
 let scanner;
 let submitting = false;
 
 function setMessage(text) {
   message.textContent = text;
-}
-
-function setNetwork(onCollegeNetwork) {
-  network.className = "network-pill " + (onCollegeNetwork ? "good" : "bad");
-  network.textContent = onCollegeNetwork ? "Connected to college WiFi ✓" : "⚠ Not on college WiFi";
-}
-
-async function checkNetwork() {
-  try {
-    const response = await fetch("/api/network-status", { credentials: "same-origin" });
-    const data = await response.json();
-    setNetwork(Boolean(data.on_college_network));
-  } catch {
-    network.className = "network-pill pending";
-    network.textContent = "Network status unavailable";
-  }
 }
 
 async function fingerprint() {
@@ -151,7 +134,6 @@ async function startScanner() {
 
 retry.addEventListener("click", startScanner);
 window.addEventListener("online", flushQueue);
-checkNetwork();
 flushQueue();
 if (window.CAMPUSCHECK_INITIAL_TOKEN) {
   beginCheckin(window.CAMPUSCHECK_INITIAL_TOKEN);

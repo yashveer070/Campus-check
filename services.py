@@ -1,7 +1,6 @@
 """Security- and domain-specific utilities."""
 from __future__ import annotations
 
-import ipaddress
 import math
 from datetime import datetime, timezone
 
@@ -22,33 +21,8 @@ def from_iso(value: str) -> datetime:
 
 
 def get_client_ip() -> str:
-    """Return the validated client address supplied by the configured ingress."""
-    if (
-        current_app.config.get("TRUST_CLOUDFLARE_CONNECTING_IP")
-        and current_app.config.get("TRUSTED_PROXY_COUNT", 0) > 0
-    ):
-        cloudflare_ip = request.headers.get("CF-Connecting-IP", "").strip()
-        try:
-            return str(ipaddress.ip_address(cloudflare_ip))
-        except ValueError:
-            if cloudflare_ip:
-                current_app.logger.warning("Ignoring invalid CF-Connecting-IP header.")
+    """Return a request address for audit logs, never for attendance eligibility."""
     return request.remote_addr or "0.0.0.0"
-
-
-def is_college_network(client_ip: str) -> tuple[bool, str | None]:
-    """Check a client IP against the configured college CIDR ranges."""
-    try:
-        ip = ipaddress.ip_address(client_ip)
-    except ValueError:
-        return False, None
-    for cidr in current_app.config["COLLEGE_IP_RANGES"]:
-        try:
-            if ip in ipaddress.ip_network(cidr, strict=False):
-                return True, cidr
-        except ValueError:
-            current_app.logger.error("Ignoring invalid COLLEGE_IP_RANGES entry: %s", cidr)
-    return False, None
 
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

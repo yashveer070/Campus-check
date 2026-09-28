@@ -1,10 +1,11 @@
-"""WiFi-validated QR attendance application."""
+"""Location-validated QR attendance application."""
 from __future__ import annotations
 
 import base64
 import csv
 import io
 import json
+import math
 import os
 import secrets
 import sqlite3
@@ -19,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import Config
 from database import close_db, get_db, init_db, log_event
-from services import from_iso, get_client_ip, is_college_network, to_iso, utcnow, valid_coordinate, validate_geofence
+from services import from_iso, get_client_ip, to_iso, utcnow, valid_coordinate, validate_geofence
 
 
 def create_app(test_config=None) -> Flask:
@@ -34,8 +35,7 @@ def create_app(test_config=None) -> Flask:
             raise RuntimeError("Set ATTENDANCE_SECRET_KEY to a long random value before starting the app.")
 
     # Only trust forwarded values when the request arrived through the configured
-    # number of proxies.  This lets QR URLs retain the public HTTPS origin without
-    # allowing direct clients to spoof their IP address or scheme.
+    # number of proxies. This keeps generated QR URLs on the public HTTPS origin.
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
         x_for=app.config["TRUSTED_PROXY_COUNT"],
@@ -201,7 +201,9 @@ def create_app(test_config=None) -> Flask:
         class_session = owner_session_or_404(session_token)
         db = get_db()
         rows = db.execute(
-            """SELECT a.*, s.name, s.roll_number FROM attendance a
+            """SELECT a.timestamp, a.latitude, a.longitude, a.accuracy,
+                      a.is_flagged, a.flag_reason, s.name, s.roll_number
+               FROM attendance a
                JOIN students s ON s.student_id = a.student_id
                WHERE a.session_token = ? ORDER BY a.timestamp ASC""",
             (session_token,),
@@ -230,9 +232,9 @@ def create_app(test_config=None) -> Flask:
             return jsonify(error="Unknown student ID."), 404
         try:
             db.execute(
-                """INSERT INTO attendance (session_token, student_id, timestamp, client_ip, network_range, device_fingerprint)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (session_token, student_id, to_iso(utcnow()), get_client_ip(), "manual", f"manual:{g.user_id}"),
+                """INSERT INTO attendance (session_token, student_id, timestamp, client_ip, device_fingerprint)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (session_token, student_id, to_iso(utcnow()), get_client_ip(), f"manual:{g.user_id}"),
             )
         except sqlite3.IntegrityError:
             return jsonify(error="This student is already recorded for the session."), 409
@@ -244,14 +246,14 @@ def create_app(test_config=None) -> Flask:
     def export_session_csv(session_token: str):
         owner_session_or_404(session_token)
         rows = get_db().execute(
-            """SELECT s.roll_number, s.name, a.timestamp, a.client_ip, a.latitude, a.longitude,
-                      a.accuracy, a.network_range, a.is_flagged, a.flag_reason
+            """SELECT s.roll_number, s.name, a.timestamp, a.latitude, a.longitude,
+                      a.accuracy, a.is_flagged, a.flag_reason
                FROM attendance a JOIN students s ON s.student_id = a.student_id
                WHERE a.session_token = ? ORDER BY a.timestamp""", (session_token,),
         ).fetchall()
         output = io.StringIO(newline="")
         writer = csv.writer(output)
-        writer.writerow(["Roll Number", "Name", "Time (UTC)", "IP Address", "Latitude", "Longitude", "Accuracy (m)", "Network Range", "Flagged", "Flag Reason"])
+        writer.writerow(["Roll Number", "Name", "Time (UTC)", "Latitude", "Longitude", "Accuracy (m)", "Flagged", "Flag Reason"])
         writer.writerows([tuple(row) for row in rows])
         return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename=attendance-{session_token[:8]}.csv"})
 
@@ -299,13 +301,6 @@ def create_app(test_config=None) -> Flask:
     def student_scan():
         return render_template("student_scan.html", initial_token=request.args.get("token", ""))
 
-    @app.get("/api/network-status")
-    @api_role_required("student")
-    def network_status():
-        ip = get_client_ip()
-        allowed, matched_range = is_college_network(ip)
-        return jsonify(on_college_network=allowed, network_range=matched_range)
-
     @app.post("/api/mark-attendance")
     @api_role_required("student")
     def mark_attendance():
@@ -319,17 +314,20 @@ def create_app(test_config=None) -> Flask:
             accuracy = None
         if not token or not coords or not fingerprint or len(fingerprint) > 128:
             return jsonify(error="A session token, valid location, and device fingerprint are required."), 400
-        if accuracy is not None and (accuracy < 0 or accuracy > 10_000):
-            return jsonify(error="Invalid location accuracy."), 400
+        if (
+            accuracy is None
+            or not math.isfinite(accuracy)
+            or accuracy < 0
+            or accuracy > app.config["MAX_LOCATION_ACCURACY_METERS"]
+        ):
+            return jsonify(
+                error=(
+                    "A precise location with accuracy of "
+                    f"{app.config['MAX_LOCATION_ACCURACY_METERS']:g} m or better is required."
+                )
+            ), 400
 
         client_ip = get_client_ip()
-        on_network, network_range = is_college_network(client_ip)
-        if not on_network:
-            # The requested token may not exist, while audit_logs deliberately has a
-            # foreign key to sessions. Keep the request token only in audit details.
-            log_event("attendance_rejected_network", student_id=g.user_id, client_ip=client_ip, details=json.dumps({"requested_token": token[:12]}))
-            return jsonify(error="Attendance is available only from a configured college WiFi network."), 403
-
         db = get_db()
         db.execute("BEGIN IMMEDIATE")
         try:
@@ -347,7 +345,12 @@ def create_app(test_config=None) -> Flask:
             if not allowed:
                 log_event("attendance_rejected_geofence", session_token=token, student_id=g.user_id, client_ip=client_ip, details=json.dumps({"distance_m": round(distance_m, 2)}))
                 db.execute("COMMIT")
-                return jsonify(error="Your location is outside the 100 m classroom boundary."), 403
+                return jsonify(
+                    error=(
+                        "Your location is outside the "
+                        f"{app.config['GEOFENCE_RADIUS_METERS']:g} m classroom boundary."
+                    )
+                ), 403
             duplicate = db.execute("SELECT 1 FROM attendance WHERE session_token = ? AND student_id = ?", (token, g.user_id)).fetchone()
             if duplicate:
                 log_event("attendance_rejected_duplicate", session_token=token, student_id=g.user_id, client_ip=client_ip)
@@ -359,9 +362,9 @@ def create_app(test_config=None) -> Flask:
             flagged = bool(device_owner and device_owner["student_id"] != g.user_id)
             reason = "Device fingerprint already used by a different student in this session." if flagged else None
             db.execute(
-                """INSERT INTO attendance (session_token, student_id, timestamp, client_ip, latitude, longitude, accuracy, network_range, device_fingerprint, is_flagged, flag_reason)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (token, g.user_id, to_iso(utcnow()), client_ip, coords[0], coords[1], accuracy, network_range, fingerprint, int(flagged), reason),
+                """INSERT INTO attendance (session_token, student_id, timestamp, client_ip, latitude, longitude, accuracy, device_fingerprint, is_flagged, flag_reason)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (token, g.user_id, to_iso(utcnow()), client_ip, coords[0], coords[1], accuracy, fingerprint, int(flagged), reason),
             )
             log_event("attendance_marked_flagged" if flagged else "attendance_marked", session_token=token, student_id=g.user_id, client_ip=client_ip, details=json.dumps({"distance_m": round(distance_m, 2), "flagged": flagged}))
             db.execute("COMMIT")

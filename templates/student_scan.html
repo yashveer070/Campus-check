@@ -2,7 +2,7 @@
 {% block title %}Scan QR · CampusCheck{% endblock %}
 {% block content %}
 <section class="scan-layout">
-  <div class="scan-copy"><p class="eyebrow">STUDENT CHECK-IN</p><h1>Point your camera<br>at the QR code.</h1><p id="network-status" class="network-pill pending">Checking campus WiFi…</p><p class="muted">After a code is detected, CampusCheck requests precise location to verify that you are in the classroom.</p><a href="{{ url_for('student_history') }}">View my attendance history</a></div>
+  <div class="scan-copy"><p class="eyebrow">STUDENT CHECK-IN</p><h1>Point your camera<br>at the QR code.</h1><p class="muted">After a code is detected, CampusCheck requests your precise location to verify that you are in the classroom.</p><a href="{{ url_for('student_history') }}">View my attendance history</a></div>
   <section class="scanner-card">
     <video id="scanner" playsinline></video>
     <div class="scanner-frame"></div>

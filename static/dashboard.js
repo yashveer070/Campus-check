@@ -25,14 +25,14 @@ async function refreshDashboard() {
     if (!data.attendance.length) {
       const row = document.createElement("tr");
       const empty = cell("No attendance has been recorded yet.");
-      empty.colSpan = 6;
+      empty.colSpan = 5;
       empty.className = "empty";
       row.append(empty);
       attendanceBody.append(row);
     }
     for (const attendee of data.attendance) {
       const row = document.createElement("tr");
-      row.append(cell(attendee.roll_number), cell(attendee.name), cell(displayTime(attendee.timestamp)), cell(attendee.client_ip));
+      row.append(cell(attendee.roll_number), cell(attendee.name), cell(displayTime(attendee.timestamp)));
       const location = attendee.latitude == null ? "Manual" : Number(attendee.latitude).toFixed(5) + ", " + Number(attendee.longitude).toFixed(5) + " (±" + Math.round(attendee.accuracy || 0) + "m)";
       row.append(cell(location));
       const status = document.createElement("span");

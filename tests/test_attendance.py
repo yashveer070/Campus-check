@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app
 from database import get_db
-from services import calculate_distance, get_client_ip, to_iso, utcnow
+from services import calculate_distance, to_iso, utcnow
 
 
 @pytest.fixture()
@@ -13,7 +13,6 @@ def app(tmp_path):
     application = create_app({
         "TESTING": True,
         "DATABASE": str(tmp_path / "test.db"),
-        "COLLEGE_IP_RANGES": ["127.0.0.0/8"],
         "SUBJECTS": ["CS101"],
         "SESSION_TTL_SECONDS": 60,
     })
@@ -41,8 +40,12 @@ def set_identity(client, user_id, role):
         browser_session["csrf_token"] = "csrf-test"
 
 
-def csrf_json(payload):
-    return {"json": payload, "headers": {"X-CSRF-Token": "csrf-test"}, "environ_base": {"REMOTE_ADDR": "127.0.0.1"}}
+def csrf_json(payload, remote_addr="127.0.0.1"):
+    return {
+        "json": payload,
+        "headers": {"X-CSRF-Token": "csrf-test"},
+        "environ_base": {"REMOTE_ADDR": remote_addr},
+    }
 
 
 def create_session(client):
@@ -54,13 +57,16 @@ def create_session(client):
     return response.get_json()["session_token"]
 
 
-def test_marks_attendance_only_once_when_network_and_geofence_are_valid(app):
+def test_marks_attendance_only_once_when_location_is_valid_from_any_connection(app):
     client = app.test_client()
     token = create_session(client)
     set_identity(client, "S001", "student")
     payload = {"session_token": token, "latitude": 12.97161, "longitude": 77.59461, "accuracy": 5, "device_fingerprint": "device-a"}
 
-    assert client.post("/api/mark-attendance", **csrf_json(payload)).status_code == 201
+    assert client.post(
+        "/api/mark-attendance",
+        **csrf_json(payload, remote_addr="198.51.100.18"),
+    ).status_code == 201
     duplicate = client.post("/api/mark-attendance", **csrf_json(payload))
     assert duplicate.status_code == 409
 
@@ -76,29 +82,25 @@ def test_rejects_student_outside_geofence(app):
     assert "outside" in response.get_json()["error"]
 
 
+@pytest.mark.parametrize("accuracy", [None, "nan", 51])
+def test_requires_precise_location_accuracy(app, accuracy):
+    client = app.test_client()
+    token = create_session(client)
+    set_identity(client, "S001", "student")
+    response = client.post("/api/mark-attendance", **csrf_json({
+        "session_token": token,
+        "latitude": 12.9716,
+        "longitude": 77.5946,
+        "accuracy": accuracy,
+        "device_fingerprint": "device-a",
+    }))
+    assert response.status_code == 400
+    assert "accuracy" in response.get_json()["error"].lower()
+
+
 def test_haversine_distance_uses_the_earth_radius():
     # One degree of longitude at the equator is roughly 111 km, not a few metres.
     assert calculate_distance(0, 0, 0, 1) == pytest.approx(111.2, rel=0.01)
-
-
-def test_uses_cloudflare_visitor_ip_only_when_explicitly_trusted(app):
-    app.config.update(
-        TRUSTED_PROXY_COUNT=1,
-        TRUST_CLOUDFLARE_CONNECTING_IP=True,
-    )
-    with app.test_request_context(
-        "/",
-        headers={"CF-Connecting-IP": "10.210.202.18"},
-        environ_base={"REMOTE_ADDR": "127.0.0.1"},
-    ):
-        assert get_client_ip() == "10.210.202.18"
-
-    with app.test_request_context(
-        "/",
-        headers={"CF-Connecting-IP": "not-an-ip"},
-        environ_base={"REMOTE_ADDR": "127.0.0.1"},
-    ):
-        assert get_client_ip() == "127.0.0.1"
 
 
 def test_qr_url_uses_forwarded_https_origin(app):
@@ -108,7 +110,6 @@ def test_qr_url_uses_forwarded_https_origin(app):
         "TESTING": True,
         "DATABASE": app.config["DATABASE"],
         "SECRET_KEY": app.config["SECRET_KEY"],
-        "COLLEGE_IP_RANGES": ["127.0.0.0/8"],
         "SUBJECTS": ["CS101"],
         "TRUSTED_PROXY_COUNT": 1,
     })

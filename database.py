@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS attendance (
     latitude REAL,
     longitude REAL,
     accuracy REAL,
-    network_range TEXT,
     device_fingerprint TEXT,
     is_flagged INTEGER NOT NULL DEFAULT 0 CHECK(is_flagged IN (0, 1)),
     flag_reason TEXT,

@@ -21,19 +21,11 @@ class Config:
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024
     # Configure this only when the app is actually behind that many trusted proxies.
     TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "0"))
-    # Enable only when the origin is reachable exclusively through Cloudflare.
-    TRUST_CLOUDFLARE_CONNECTING_IP = os.environ.get(
-        "TRUST_CLOUDFLARE_CONNECTING_IP", "false"
-    ).lower() == "true"
-    COLLEGE_IP_RANGES = [
-        item.strip()
-        for item in os.environ.get(
-            "COLLEGE_IP_RANGES", "10.210.202.0/24"
-        ).split(",")
-        if item.strip()
-    ]
     SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", "120"))
     GEOFENCE_RADIUS_METERS = float(os.environ.get("GEOFENCE_RADIUS_METERS", "50"))
+    MAX_LOCATION_ACCURACY_METERS = float(
+        os.environ.get("MAX_LOCATION_ACCURACY_METERS", "50")
+    )
     SUBJECTS = [
         item.strip()
         for item in os.environ.get("SUBJECTS", "CS101,CS102,MA101,").split(",")
