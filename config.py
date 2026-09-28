@@ -24,7 +24,7 @@ class Config:
     COLLEGE_IP_RANGES = [
         item.strip()
         for item in os.environ.get(
-            "COLLEGE_IP_RANGES", "10.27.126.0/24"
+            "COLLEGE_IP_RANGES", "10.210.202.0/24"
         ).split(",")
         if item.strip()
     ]
