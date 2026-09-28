@@ -33,7 +33,15 @@ def create_app(test_config=None) -> Flask:
         else:
             raise RuntimeError("Set ATTENDANCE_SECRET_KEY to a long random value before starting the app.")
 
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=app.config["TRUSTED_PROXY_COUNT"])
+    # Only trust forwarded values when the request arrived through the configured
+    # number of proxies.  This lets QR URLs retain the public HTTPS origin without
+    # allowing direct clients to spoof their IP address or scheme.
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=app.config["TRUSTED_PROXY_COUNT"],
+        x_proto=app.config["TRUSTED_PROXY_COUNT"],
+        x_host=app.config["TRUSTED_PROXY_COUNT"],
+    )
     app.teardown_appcontext(close_db)
 
     @app.before_request
@@ -94,6 +102,11 @@ def create_app(test_config=None) -> Flask:
     @app.context_processor
     def template_values():
         return {"csrf_token": session.get("csrf_token", ""), "subjects": app.config["SUBJECTS"]}
+
+    @app.get("/healthz")
+    def health_check():
+        """Small unauthenticated endpoint for a hosting platform health check."""
+        return {"status": "ok"}
 
     @app.get("/")
     def index():
@@ -426,6 +439,10 @@ def create_app(test_config=None) -> Flask:
         init_db()
     return app
 
-
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=False)
+    app = create_app()
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "5000")),
+        debug=os.environ.get("FLASK_DEBUG", "false").lower() in {"1", "true", "yes"},
+    )

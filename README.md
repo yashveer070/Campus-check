@@ -5,7 +5,7 @@ A Flask + SQLite attendance system for short-lived classroom QR codes. It record
 - authenticated student account;
 - configured college CIDR range;
 - valid, active 60-second session;
-- 100 m Haversine GPS geofence;
+- configurable GPS geofence (50 m by default);
 - one check-in per student and session;
 - duplicate device-fingerprint flagging; and
 - immutable-style audit events with client IP logging.
@@ -42,6 +42,14 @@ Copy the values in .env.example into your deployment’s secret manager or envir
 Never trust a user-supplied X-Forwarded-For header directly. The application uses Werkzeug ProxyFix only for the configured proxy count, then validates request.remote_addr.
 
 The default ranges intentionally reject 127.0.0.1, so a local student check-in will fail the WiFi gate unless you temporarily configure COLLEGE_IP_RANGES=127.0.0.0/8 for development. This should never be used in production.
+
+## Internet deployment
+
+The app includes a production WSGI entry point and Dockerfile. Use exactly one application worker with SQLite and mount a persistent volume at `/data`; set `ATTENDANCE_DATABASE=/data/attendance.db` on a non-Docker host. A public deployment must use HTTPS so browsers can access the camera and GPS.
+
+Set `TRUSTED_PROXY_COUNT=1` only when the app is behind one proxy you control (such as a Cloudflare Tunnel). Set `COLLEGE_IP_RANGES` to the public egress CIDR(s) of the college WiFi. Private LAN ranges such as `10.210.202.0/24` do not work over the Internet because the hosted app sees the WiFi network's public IP.
+
+For a permanent public address, run the Docker image on a host with persistent storage or configure a named Cloudflare Tunnel with a domain you control. A temporary Quick Tunnel is suitable for testing only.
 
 ## Limits worth knowing
 

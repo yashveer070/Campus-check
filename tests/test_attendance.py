@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app
 from database import get_db
-from services import to_iso, utcnow
+from services import calculate_distance, to_iso, utcnow
 
 
 @pytest.fixture()
@@ -74,6 +74,38 @@ def test_rejects_student_outside_geofence(app):
     }))
     assert response.status_code == 403
     assert "outside" in response.get_json()["error"]
+
+
+def test_haversine_distance_uses_the_earth_radius():
+    # One degree of longitude at the equator is roughly 111 km, not a few metres.
+    assert calculate_distance(0, 0, 0, 1) == pytest.approx(111.2, rel=0.01)
+
+
+def test_qr_url_uses_forwarded_https_origin(app):
+    app.config["TRUSTED_PROXY_COUNT"] = 1
+    # Recreate the app so ProxyFix reads the changed setting before wrapping WSGI.
+    proxied_app = create_app({
+        "TESTING": True,
+        "DATABASE": app.config["DATABASE"],
+        "SECRET_KEY": app.config["SECRET_KEY"],
+        "COLLEGE_IP_RANGES": ["127.0.0.0/8"],
+        "SUBJECTS": ["CS101"],
+        "TRUSTED_PROXY_COUNT": 1,
+    })
+    client = proxied_app.test_client()
+    set_identity(client, "T001", "teacher")
+    response = client.post(
+        "/api/teacher/sessions",
+        json={"subject_code": "CS101", "latitude": 12.9716, "longitude": 77.5946},
+        headers={
+            "X-CSRF-Token": "csrf-test",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "attendance.example.edu",
+        },
+        environ_base={"REMOTE_ADDR": "127.0.0.1"},
+    )
+    assert response.status_code == 201
+    assert response.get_json()["scan_url"].startswith("https://attendance.example.edu/student/scan?")
 
 
 def test_expired_or_unknown_token_is_rejected_and_audited_safely(app):

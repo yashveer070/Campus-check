@@ -43,7 +43,7 @@ def is_college_network(client_ip: str) -> tuple[bool, str | None]:
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return the Haversine distance in kilometres."""
-    radius_km =.04
+    radius_km = 6371.0088
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
